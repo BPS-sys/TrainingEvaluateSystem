@@ -18,19 +18,39 @@ landmarks_to_display = [
 
 # 座っているかどうかを判定する関数（腰と膝のY座標の差を使用）
 def is_sitting(landmarks, image_height, threshold=80):
+    # 必要なランドマークを取得
     left_hip_y = landmarks[mp_pose.PoseLandmark.LEFT_HIP.value].y * image_height
     right_hip_y = landmarks[mp_pose.PoseLandmark.RIGHT_HIP.value].y * image_height
     left_knee_y = landmarks[mp_pose.PoseLandmark.LEFT_KNEE.value].y * image_height
     right_knee_y = landmarks[mp_pose.PoseLandmark.RIGHT_KNEE.value].y * image_height
 
+    # 腰と膝のY座標の差を計算
     left_diff = abs(left_hip_y - left_knee_y)
     right_diff = abs(right_hip_y - right_knee_y)
 
+    # 差が閾値以下の場合は「座っている」と判定
     if left_diff < threshold and right_diff < threshold:
         return True
     return False
 
-# 姿勢がよいかを判定する関数（左膝と左足首のX座標の差を使用）
+# 姿勢がよいかを判定する関数（肩と腰のX座標の差を使用）
+def posture_quality(landmarks, image_width):
+    left_shoulder_x = landmarks[mp_pose.PoseLandmark.LEFT_SHOULDER.value].x * image_width
+    right_shoulder_x = landmarks[mp_pose.PoseLandmark.RIGHT_SHOULDER.value].x * image_width
+    left_hip_x = landmarks[mp_pose.PoseLandmark.LEFT_HIP.value].x * image_width
+    right_hip_x = landmarks[mp_pose.PoseLandmark.RIGHT_HIP.value].x * image_width
+
+    # 肩と腰のX座標の差を計算
+    diff = abs(left_shoulder_x - left_hip_x)
+
+    if diff < 30:
+        return '100Point'
+    elif diff < 50:
+        return '50Point'
+    else:
+        return '0Point'
+
+# ９０度人なっているかを判定する関数（左膝と左足首のX座標の差を使用）
 def posture_quality_knee_ankle(landmarks, image_width):
     left_knee_x = landmarks[mp_pose.PoseLandmark.LEFT_KNEE.value].x * image_width
     left_ankle_x = landmarks[mp_pose.PoseLandmark.LEFT_ANKLE.value].x * image_width
@@ -39,11 +59,11 @@ def posture_quality_knee_ankle(landmarks, image_width):
     diff = abs(left_knee_x - left_ankle_x)
 
     if diff < 30:
-        return 'Perfect'
+        return '100Point'
     elif diff < 50:
-        return 'Good'
+        return '50Point'
     else:
-        return 'Bad'
+        return '0Point'
 
 # Webカメラ入力の場合：
 cap = cv2.VideoCapture(0)
@@ -80,9 +100,13 @@ with mp_pose.Pose(
             else:
                 cv2.putText(image, 'Standing', (30, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2, cv2.LINE_AA)
 
-            # 左膝と左足首のX座標を使って姿勢を判定
+            # 左膝と左足首のX座標を使って９０度になっているかを判定
             posture = posture_quality_knee_ankle(results.pose_landmarks.landmark, image_width)
             cv2.putText(image, f'Posture (Knee-Ankle): {posture}', (30, 100), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 0), 2, cv2.LINE_AA)
+
+        # 姿勢が良いかを判定
+            posture = posture_quality(results.pose_landmarks.landmark, image_width)
+            cv2.putText(image, f'Posture: {posture}', (30, 80), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 0), 2, cv2.LINE_AA)
 
         # ウィンドウに画像を表示
         cv2.imshow('MediaPipe Pose', image)
