@@ -1,0 +1,4 @@
+vosk==0.3.45
+numpy==2.0.2
+sounddevice==0.5.1
+pykakasi== 2.3.0
