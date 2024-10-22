@@ -40,7 +40,7 @@ def posture_quality(landmarks, image_width):
     # 肩と腰のX座標の差を計算
     diff = abs(left_shoulder_x - left_hip_x)
 
-    if diff < 20:
+    if diff < 30:
         return 'Perfect'
     elif diff < 50:
         return 'Good'
