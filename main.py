@@ -1,119 +1,156 @@
+import cv2
+import mediapipe as mp
+import time
+import numpy as np
 
-import tkinter as tk
-from back_process import BackProcess
-import threading
-import re
-from tkinter import messagebox
+mp_drawing = mp.solutions.drawing_utils
+mp_pose = mp.solutions.pose
 
+#膝と足首の位置
+def bottom_is_good(landmarks, image_width, threshold=80):
+  
+  #座標取得
+  right_knee_x = landmarks[mp_pose.PoseLandmark.RIGHT_KNEE.value].x * image_width
+  left_knee_x = landmarks[mp_pose.PoseLandmark.LEFT_KNEE.value].x * image_width
+  right_ankle_x = landmarks[mp_pose.PoseLandmark.RIGHT_ANKLE.value].x * image_width
+  left_ankle_x = landmarks[mp_pose.PoseLandmark.LEFT_ANKLE.value].x * image_width
 
-# アプリケーションクラス
-class App(tk.Frame):
+  #y軸の誤差
+  left_diff = abs(left_knee_x - left_ankle_x)
+  right_diff = abs(right_knee_x - right_ankle_x)
 
-    def __init__(self, root):
-        super().__init__(root)
-        self.root = root
-        self.root_width = 320
-        self.root_height = 185
-        self.screen_width = self.root.winfo_screenwidth()
-        self.screen_height = self.root.winfo_screenheight()
-        self.root_x = (self.screen_width//2) - (self.root_width//2)
-        self.root_y = (self.screen_height//2) - (self.root_height//2)
-        self.root.geometry(f'{self.root_width}x{self.root_height}+{self.root_x}+{self.root_y}')
-        self.root.protocol("WM_DELETE_WINDOW", self.destroy_window)
-        self.user_names = ['こうし', 'やまだ']
-        self.mic_num = len(self.user_names)
-        self.backprocess = None
-        self.press_enter_key_num = 0
-        self.create_widget()
-        # self.main()
+  if left_diff < threshold and right_diff < threshold:
+    return True
+  return False
 
-    def create_widget(self):
-        self.canvas = tk.Canvas(width=self.root_width, height=self.root_height, bg='black', highlightthickness=0)
-        self.canvas.place(x=0, y=0)
-        self.entry_box = tk.Entry()
-        #スクロールバーの作成
-        scroll = tk.Scrollbar(self.root)
-        #スクロールバーの配置を決める
-        self.list_value = tk.StringVar()
-        self.list_value.set(self.user_names)
-        self.listbox = tk.Listbox(self.root, height=8, width=23, listvariable=self.list_value, selectmode="single", yscrollcommand=scroll.set)
-        self.add_button = tk.Button(height=1, text='開始', command=self.press_start_button)
-        self.add_button.place(x=140, y=150)
-        scroll.place(x=155, y=10, height=132)
-        self.listbox.place(x=10, y=10)
-        self.entry_box.place(x=10, y=150, height=25)
-        self.setting_bind()
+#首と肩の位置
+def neck_is_good(landmarks, image_height, image_width, threshold=30, limit=80):#差が30以上80以下になればOK
 
-    def press_start_button(self):
-        ret = messagebox.askokcancel('最終確認', '評価システムを起動しますか？')
-        if ret:
-            self.main()
-            messagebox.showinfo('メッセージ', 'システムを起動しました')
-        else:
-            messagebox.showwarning('メッセージ', 'システムの起動を中止しました')
+  #座標取得
+  right_eye_x = landmarks[mp_pose.PoseLandmark.RIGHT_EYE.value].x * image_width
+  right_shoulder_x = landmarks[mp_pose.PoseLandmark.RIGHT_SHOULDER.value].x * image_width
+  right_eye_y = landmarks[mp_pose.PoseLandmark.RIGHT_EYE.value].y * image_height
+  right_shoulder_y = landmarks[mp_pose.PoseLandmark.RIGHT_SHOULDER.value].y * image_height
+
+  #右肩と右目のユークリッド距離　首の前後左右の位置を見る
+  point1 = np.array([right_eye_x, right_eye_y])
+  point2 = np.array([right_shoulder_x, right_shoulder_y])
+  
+  euclidean_distance = np.linalg.norm(point1 - point2)
 
 
-    def press_Deletekey(self):
-        selected_index = self.listbox.curselection()[0]
-        if selected_index != 0:
-            del self.user_names[selected_index]
-            self.list_value.set(self.user_names)
-        
-    def press_Enterkey(self):
-        self.press_enter_key_num += 1
-        if self.press_enter_key_num > 1:
-            self.press_enter_key_num = 0
-            name = self.entry_box.get()
-            self.entry_box.delete(0, tk.END)
-            if re.search('[\u3040-\u309F]', name):
-                self.user_names.append(name)
-                print(self.user_names)
-                self.list_value.set(self.user_names)
+  if euclidean_distance > threshold and euclidean_distance < limit:
+    return True
+  return False
 
-    def keyrelease_event_entrybox(self, e):
-        print(e.keysym)
-        if e.keysym == 'Return':
-            self.press_Enterkey()
-        else:
-            self.press_enter_key_num = 0
+#手首と膝のy軸とz軸を検証する
+def hand_scoring(landmarks, image_height, image_width):#z軸:膝=手首 y軸:膝-手首<限界値　x軸:閾値<膝-手首<限界値
 
-    def keyrelease_event_listbox(self, e):
-        if e.keysym == 'Delete':
-            self.press_Deletekey()
+  #正規化
+  right_knee_x = landmarks[mp_pose.PoseLandmark.RIGHT_KNEE.value].x * image_width
+  right_knee_y = landmarks[mp_pose.PoseLandmark.RIGHT_KNEE.value].y * image_height
+  right_knee_z = landmarks[mp_pose.PoseLandmark.RIGHT_KNEE.value].z * image_height
+  right_wrist_x = landmarks[mp_pose.PoseLandmark.RIGHT_WRIST.value].x * image_width
+  right_wrist_y = landmarks[mp_pose.PoseLandmark.RIGHT_WRIST.value].y * image_height
+  right_wrist_z = landmarks[mp_pose.PoseLandmark.RIGHT_WRIST.value].z * image_height
 
-    def setting_bind(self):
-        self.entry_box.bind('<KeyRelease>', self.keyrelease_event_entrybox)
-        self.listbox.bind('<KeyRelease>', self.keyrelease_event_listbox)
-    
-    # UIを閉じるイベントが発生したとき
-    def destroy_window(self):
-        ret = messagebox.askokcancel('最終確認', 'システムを終了しますか？')
-        if ret:
-            if self.backprocess:
-                self.backprocess.stop_voice_recognition()
-                self.backprocess.stop_voice_update_check()
-                self.voice_update_check_process_thread.join()
-            messagebox.showinfo('メッセージ', '評価システムは正常に終了しました。\nこのウィンドウを閉じるとアプリケーションを終了します。')
-            self.root.destroy()
+#x軸とy軸の差
+  right_x_diff = abs(right_knee_x - right_wrist_x)
+  right_y_diff = abs(right_knee_y - right_wrist_y)
+  right_z_diff = abs(right_knee_z - right_wrist_z)
+
+  if 30 <= right_x_diff <= 60 and 40 <= right_y_diff <= 80 and 0 <= right_z_diff <= 50:#x30~50, y40~50, z0~10
+    return 'Perfect'
+  elif ((20 <= right_x_diff <= 29 or 51 <= right_x_diff <= 60) and
+        (30 <= right_y_diff <= 39 or 51 <= right_y_diff <= 60) and
+        11 <= right_z_diff <= 20):#x20~29・51~60, y30~39,51~60, z11~20 
+    return 'Good'
+  else:
+    return 'Bad'
 
 
-    # クラス内メイン
-    def main(self):
-        print('process start')
-        self.backprocess = BackProcess(mic_num=self.mic_num, user_names=self.user_names)
-        voice_recognition_thread = threading.Thread(target=self.backprocess.start_voice_recognition)
-        voice_recognition_thread.start()
-        self.voice_update_check_process_thread = threading.Thread(target=self.backprocess.voice_update_check_process)
-        self.voice_update_check_process_thread.start()
+#指定座標からいくらずれたかで採点　行き過ぎると0
+#座標の位置を固定するためにどこか1点の数値を合わせるように全体を正規化してそこから誤差を計算して点数をつける
+# def neck_scoring(landmarks, image_height, image_width, threshold=30, limit=80):
+
+#   #座標取得
+#   right_eye_x = landmarks[mp_pose.PoseLandmark.RIGHT_EYE.value].x * image_width
+#   right_shoulder_x = landmarks[mp_pose.PoseLandmark.RIGHT_SHOULDER.value].x * image_width
+#   right_eye_y = landmarks[mp_pose.PoseLandmark.RIGHT_EYE.value].y * image_height
+#   right_shoulder_y = landmarks[mp_pose.PoseLandmark.RIGHT_SHOULDER.value].y * image_height
+
+#   #右肩と右目のユークリッド距離　首の前後左右の位置を見る
+#   point1 = np.array([right_eye_x, right_eye_y])
+#   point2 = np.array([right_shoulder_x, right_shoulder_y])
+  
+#   euclidean_distance = np.linalg.norm(point1 - point2)
 
 
-# 根幹
-def UI_main():
-    ROOT = tk.Tk()
-    App(ROOT)
-    ROOT.mainloop()
+#   if euclidean_distance > threshold and euclidean_distance < limit:
+#     return True
+#   return False
 
+# Webカメラ入力の場合：
+cap = cv2.VideoCapture(0)
+with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence=0.5) as pose:
+    last_time = time.time()  # 最後に座標を取得した時間を記録
+    while cap.isOpened():
+        success, image = cap.read()
+        if not success:
+            print("Ignoring empty camera frame.")
+            continue
 
-# 誤爆防止
-if __name__ == '__main__':
-    UI_main()
+        # 画像を水平反転し、BGRからRGBに変換
+        image = cv2.cvtColor(cv2.flip(image, 1), cv2.COLOR_BGR2RGB)
+        image.flags.writeable = False
+        results = pose.process(image)
+        image_height, image_width, _ = image.shape
+
+        # 画像にポーズアノテーションを描画
+        image.flags.writeable = True
+        image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
+
+        # 5秒ごとに座標を取得する
+        current_time = time.time()
+        if current_time - last_time < 5:
+            last_time = current_time  # 現在の時間を記録して次回の基準にする
+
+            # 特定のランドマークを個別に描画する
+            if results.pose_landmarks:
+                landmark_points = {
+                    2: '左目', 5: '右目', 11: '左肩', 12: '右肩', 13: '左肘', 14: '右肘',
+                    15: '左手首', 16: '右手首', 23: '左腰', 24: '右腰', 25:'左膝', 26:'右膝',
+                    27:'左足首',28: '右足首'
+                }
+
+                # ランドマークを一つずつ描画し、座標を取得する
+                for landmark_index, label in landmark_points.items():
+                    landmark = results.pose_landmarks.landmark[landmark_index]
+
+                    # ランドマークの座標を取得して描画
+                    h, w, _ = image.shape
+                    cx, cy = int(landmark.x * w), int(landmark.y * h)
+                    cz = landmark.z  # z軸の座標  
+
+                    # ランドマークの位置に円を描画
+                    cv2.circle(image, (cx, cy), 5, (0, 255, 0), cv2.FILLED)
+
+                    # 座標をコンソールに表示（X, Y, Z）
+                    print(f"{label}: X座標: {cx}, Y座標: {cy}, Z座標: {cz:.4f}")
+                    
+                    # ランドマークに対応するラベルを表示
+                    # cv2.putText(image, label, (cx + 10, cy + 10),
+                    #             cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
+                if bottom_is_good(results.pose_landmarks.landmark, image_width):
+                  cv2.putText(image, 'good', (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2, cv2.LINE_AA)
+                else:
+                  cv2.putText(image, 'bad', (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2, cv2.LINE_AA)
+                hand = hand_scoring(results.pose_landmarks.landmark, image_height, image_width)
+                cv2.putText(image, f"hand:{hand}", (30, 100), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 0), 2, cv2.LINE_AA)
+        # 画像を表示
+        cv2.imshow('Selected Landmarks', image)
+
+        if cv2.waitKey(5) & 0xFF == 27:
+            break
+
+cap.release()
