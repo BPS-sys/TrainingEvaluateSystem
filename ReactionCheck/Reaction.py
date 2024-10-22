@@ -4,10 +4,9 @@ import datetime
 import pykakasi
 
 class reaction:
-    def __init__(self):
+    def __init__(self, score_list):
         self.infos = None
         self.names = None
-        self.score = 0
         self.kakasi = pykakasi.kakasi()
         self.kakasi.setMode('K', 'H')
         self.kakasi.setMode('J', 'H')
@@ -16,11 +15,14 @@ class reaction:
         self.last_deal_time = '2024-10-18 15:34:12'
         self.last_deal_time = datetime.datetime.strptime(self.last_deal_time, '%Y-%m-%d %H:%M:%S')
         self.question_list = ['おもいますか', 'かんがえますか', 'どうですか']
+        self.score_list = score_list
 
+    # 情報取得
     def send(self, infos, names):
         self.infos = infos
         self.names = names
 
+    # リアクションチェック
     def check(self):
         dealed_flag = False
         temp_time = self.last_deal_time
@@ -45,15 +47,13 @@ class reaction:
                         temp_time = student_time_stump
                     if student_time_stump >= teacher_time_stump:
                         if 'はい' in ''.join(list(text)[:5]):
-                            self.score += 100
+                            self.score_list[student_name_index] += 100
                             dealed_flag = True
                         else:
-                            self.score -= 100
+                            self.score_list[student_name_index] -= 100
                             dealed_flag = False
         # 処理した最も遅い時間を更新
         self.last_deal_time = temp_time
-        print(f'今の返事スコア：{self.score}')
-        print(self.last_deal_time)
         return dealed_flag
 
 
