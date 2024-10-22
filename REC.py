@@ -28,7 +28,6 @@ class VTT:
     def callback(self, indata, frames, time, status):
         self.Q.put(bytes(indata))
 
-
     # 音声取り込み&音声をテキストに変換
     def voice_to_text(self, model):
         with sd.RawInputStream(samplerate=self.samplerate, blocksize = self.SAMPLE_RATE*self.BUFFER_DURATION, device=self.audio_device,
@@ -50,11 +49,16 @@ class VTT:
                     else:
                         now = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
                         self.last_update = now
-                        self.pitch_name, self.pitch_score = self.voice_tone_check.what_is_doremi(data)
+                        self.voice_tone_check.what_is_doremi(data)
+                        self.get_pitch_result()
                         self.results.append([now, result])
                         print(f'success record! time : {now}')
             # ループ脱出確認
             print('Task Kill "voice_to_text()"')
+
+    # 声のトーン結果
+    def get_pitch_result(self):
+        self.pitch_name, self.pitch_score = self.voice_tone_check.get_result_info()
 
     # 音声認識スレッドの停止
     def stop(self):
