@@ -24,24 +24,25 @@ def bottom_is_good(landmarks, image_width, threshold=80):
   return False
 
 #首と肩の位置
-def neck_is_good(landmarks, image_height, image_width, threshold=30, limit=80):#差が30以上80以下になればOK
+def neck_scoring(landmarks, image_height, image_width):
 
   #座標取得
-  right_eye_x = landmarks[mp_pose.PoseLandmark.RIGHT_EYE.value].x * image_width
+  right_ear_x = landmarks[mp_pose.PoseLandmark.RIGHT_EAR.value].x * image_width
   right_shoulder_x = landmarks[mp_pose.PoseLandmark.RIGHT_SHOULDER.value].x * image_width
-  right_eye_y = landmarks[mp_pose.PoseLandmark.RIGHT_EYE.value].y * image_height
-  right_shoulder_y = landmarks[mp_pose.PoseLandmark.RIGHT_SHOULDER.value].y * image_height
+  left_ear_x = landmarks[mp_pose.PoseLandmark.LEFT_EAR.value].x * image_height
+  left_shoulder_x = landmarks[mp_pose.PoseLandmark.LEFT_SHOULDER.value].x * image_height
 
-  #右肩と右目のユークリッド距離　首の前後左右の位置を見る
-  point1 = np.array([right_eye_x, right_eye_y])
-  point2 = np.array([right_shoulder_x, right_shoulder_y])
-  
-  euclidean_distance = np.linalg.norm(point1 - point2)
+  #y軸の誤差
+  left_diff = abs(left_ear_x - left_shoulder_x)
+  right_diff = abs(right_ear_x - right_shoulder_x)
 
+  if left_diff < 40 and right_diff <40:
+    return 'Perfect'
+  elif 40 <= left_diff <= 55 or 40 <= right_diff <= 55:
+    return 'Good'
+  else:
+    return 'Bad'
 
-  if euclidean_distance > threshold and euclidean_distance < limit:
-    return True
-  return False
 
 #手首と膝のy軸とz軸を検証する
 def hand_scoring(landmarks, image_height, image_width):#z軸:膝=手首 y軸:膝-手首<限界値　x軸:閾値<膝-手首<限界値
@@ -145,8 +146,9 @@ with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence=0.5) as 
                   cv2.putText(image, 'good', (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2, cv2.LINE_AA)
                 else:
                   cv2.putText(image, 'bad', (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2, cv2.LINE_AA)
-                hand = hand_scoring(results.pose_landmarks.landmark, image_height, image_width)
-                cv2.putText(image, f"hand:{hand}", (30, 100), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 0), 2, cv2.LINE_AA)
+
+                neck = neck_scoring(results.pose_landmarks.landmark, image_height, image_width)
+                cv2.putText(image, f"neck:{neck}", (30, 100), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2, cv2.LINE_AA)
         # 画像を表示
         cv2.imshow('Selected Landmarks', image)
 
