@@ -5,18 +5,18 @@ import pykakasi
 
 class confidence:
 
-    def __init__(self, score_list):
+    def __init__(self, score_list, out_list):
+        self.infos = None
+        self.student_infos = None
         self.kakasi = pykakasi.kakasi()
         self.kakasi.setMode('K', 'H')
         self.kakasi.setMode('J', 'H')
         self.conversion = self.kakasi.getConverter()
-        self.student_infos = None
-        self.infos = None
-        # self.last_deal_time = datetime.datetime.now().strftime('%H:%M:%S')
-        self.last_deal_time = '2024-10-18 15:34:12'
+        self.last_deal_time = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        # self.last_deal_time = '2024-10-18 15:34:12'
         self.last_deal_time = datetime.datetime.strptime(self.last_deal_time, '%Y-%m-%d %H:%M:%S')
-        self.out_list = ['おもいます']
         self.score_list = score_list
+        self.out_list = out_list
 
     # 情報取得
     def send(self, infos):

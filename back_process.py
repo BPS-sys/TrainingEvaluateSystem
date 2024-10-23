@@ -11,9 +11,9 @@ import numpy as np
 
 class BackProcess:
 
-    def __init__(self, mic_num, user_names):
-        self.mic_num = mic_num
-        self.vtts = [VTT() for _ in range(self.mic_num)]
+    def __init__(self, mic_ids, user_names, reaction_question_list, confidence_out_list):
+        self.mic_num = len(mic_ids)
+        self.vtts = [VTT(mic_id) for mic_id in mic_ids]
         self.voice_threads = []
         self.model_path = "vosk-model-ja-0.22"  # 音声認識モデル
         self.model = Model(self.model_path)
@@ -21,11 +21,13 @@ class BackProcess:
         self.user_names = user_names
         self.first_process = True
         self.before_update = None
+        self.reaction_question_list = reaction_question_list
+        self.confidence_out_list = confidence_out_list
         self.reaction_dealed_flag = None
         self.confidence_dealed_flag = None
         self.voice_result = None
-        self.reaction = Reaction.reaction(list(np.zeros((len(self.user_names),))))
-        self.confidence = Confidence.confidence(list(np.zeros((len(self.user_names),))))
+        self.reaction = Reaction.reaction(score_list=list(map(int, np.zeros((len(self.user_names),)))), question_list=self.reaction_question_list)
+        self.confidence = Confidence.confidence(score_list=list(map(int, np.zeros((len(self.user_names),)))), out_list=confidence_out_list)
         self.stop_event = threading.Event()
 
     # 音声認識を別スレッドで開始
@@ -44,8 +46,8 @@ class BackProcess:
                 self.before_update = copy.deepcopy(last_update)
             if self.before_update != last_update:
                 self.voice_result = self.get_voice_to_text_results()
-                print(self.get_voice_to_text_results())
                 self.reaction_check()
+                self.confidence_check()
                 self.before_update = copy.deepcopy(last_update)
             sleep(0.5)
 

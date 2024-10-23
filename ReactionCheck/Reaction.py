@@ -1,21 +1,20 @@
 
-
 import datetime
 import pykakasi
 
 class reaction:
-    def __init__(self, score_list):
+    def __init__(self, score_list, question_list):
         self.infos = None
         self.names = None
         self.kakasi = pykakasi.kakasi()
         self.kakasi.setMode('K', 'H')
         self.kakasi.setMode('J', 'H')
         self.conversion = self.kakasi.getConverter()
-        # self.last_deal_time = datetime.datetime.now().strftime('%H:%M:%S')
-        self.last_deal_time = '2024-10-18 15:34:12'
+        self.last_deal_time = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        # self.last_deal_time = '2024-10-18 15:34:12'
         self.last_deal_time = datetime.datetime.strptime(self.last_deal_time, '%Y-%m-%d %H:%M:%S')
-        self.question_list = ['おもいますか', 'かんがえますか', 'どうですか']
         self.score_list = score_list
+        self.question_list = question_list
 
     # 情報取得
     def send(self, infos, names):
@@ -52,13 +51,19 @@ class reaction:
                         else:
                             self.score_list[student_name_index] -= 100
                             dealed_flag = False
+        print(self.score_list)
         # 処理した最も遅い時間を更新
         self.last_deal_time = temp_time
         return dealed_flag
 
 
 if __name__ == '__main__':
-    reaction_check = reaction()
+    import numpy as np
+    score_list = list(map(int, np.zeros(2,)))
+    reaction_question_list = ['おもいますか', 'かんがえますか', 'どうですか']
+    reaction_check = reaction(score_list=score_list, question_list=reaction_question_list)
+    
+    
     reaction_check.send(infos=[[['2024-10-18 16:45:58', 'それでは'], ['2024-10-18 16:46:05', 'どう思いますか？山田さん']],
                                [['2024-10-18 16:46:06', 'えっとー、それはダメだと思います']]],
                         names=['こうし', 'やまだ'])

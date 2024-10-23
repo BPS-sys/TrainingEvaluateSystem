@@ -10,12 +10,13 @@ from VoiceToneCheck import Voicetone
 
 class VTT:
 
-    def __init__(self):
+    def __init__(self, mic_id):
         self.Q = queue.Queue()
         self.SAMPLE_RATE = 8000
         self.BUFFER_DURATION = 5
-        self.audio_device = sd.default.device[0]
-        self.device_info = sd.query_devices(self.audio_device, "input")
+        self.mic_id = mic_id
+        self.device_info = sd.query_devices(mic_id, "input")
+        print(self.device_info)
         self.samplerate = int(self.device_info["default_samplerate"])
         self.results = []
         self.pitch_name = None
@@ -30,7 +31,7 @@ class VTT:
 
     # 音声取り込み&音声をテキストに変換
     def voice_to_text(self, model):
-        with sd.RawInputStream(samplerate=self.samplerate, blocksize = self.SAMPLE_RATE*self.BUFFER_DURATION, device=self.audio_device,
+        with sd.RawInputStream(samplerate=self.samplerate, blocksize = self.SAMPLE_RATE*self.BUFFER_DURATION, device=self.mic_id,
                 dtype="int16", channels=1, callback=self.callback):
             print("#" * 80)
             print(f"recording {id(model)}")
@@ -49,9 +50,10 @@ class VTT:
                     else:
                         now = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
                         self.last_update = now
-                        self.voice_tone_check.what_is_doremi(data)
+                        self.voice_tone_check.what_is_doremi(data, self.samplerate)
                         self.get_pitch_result()
                         self.results.append([now, result])
+                        print(self.mic_id, result)
                         print(f'success record! time : {now}')
             # ループ脱出確認
             print('Task Kill "voice_to_text()"')
