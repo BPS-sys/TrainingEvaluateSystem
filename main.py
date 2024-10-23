@@ -7,6 +7,8 @@ from tkinter import messagebox
 from tkinter.ttk import *
 import sounddevice as sd
 from tkinterdnd2 import *
+import os
+from tkinter import filedialog
 
 
 # マイクに該当するデバイスIDを自動取得する関数
@@ -46,17 +48,27 @@ class App(tk.Frame):
         self.create_widget()
 
     def create_widget(self):
-        self.canvas = tk.Canvas(width=self.root_width, height=self.root_height, bg='black', highlightthickness=0)
+        self.canvas = tk.Canvas(width=self.root_width, height=self.root_height,
+                                bg='black', highlightthickness=0)
         self.canvas.place(x=0, y=0)
         self.entry_box = tk.Entry(self.root)
         self.entry_box.place(x=10, y=150, height=25)
-        self.add_button = tk.Button(self.root, height=1, text='開始', command=self.press_start_button)
+        self.add_button = tk.Button(self.root, height=1, text='開始',
+                                    command=self.press_start_button)
         self.add_button.place(x=140, y=150)
-        self.write_mic_queue_button = tk.Button(self.root, width=18, height=1, text='マイクの書き出し', command=self.press_write_mic_queue)
+        self.write_mic_queue_button = tk.Button(self.root, width=18, height=1,
+                                                text='マイクの書き出し',
+                                                command=self.press_write_mic_queue)
         self.write_mic_queue_button.place(x=180, y=40)
-        self.drop_canvas = tk.Canvas(width=135, height=105, bg='red', highlightthickness=0)
-        self.drop_canvas.place(x=180, y=70)
+        self.drop_canvas = tk.Canvas(width=135, height=85, bg='red',
+                                     highlightthickness=0)
+        self.drop_canvas.place(x=180, y=95)
         self.drop_canvas.drop_target_register(DND_FILES)
+        self.path_entrybox = tk.Entry(self.root)
+        self.path_entrybox.place(x=180, y=70, height=20, width=100)
+        self.open_file_button = tk.Button(text='開く', command=self.file_dialog)
+        self.open_file_button.place(x=285, y=68)
+
         self.tab = Notebook(self.root, width=160, height=110)
         self.tab.place(x=10, y=10)
         self.tab1 = tk.Frame(self.tab)
@@ -67,7 +79,10 @@ class App(tk.Frame):
         scroll_name = tk.Scrollbar(self.tab1)
         self.list_value_name = tk.StringVar()
         self.list_value_name.set(self.user_names)
-        self.listbox_name = tk.Listbox(self.tab1, height=6, width=22, listvariable=self.list_value_name, selectmode="single", yscrollcommand=scroll_name.set)
+        self.listbox_name = tk.Listbox(self.tab1, height=6, width=22,
+                                       listvariable=self.list_value_name,
+                                       selectmode="single",
+                                       yscrollcommand=scroll_name.set)
         scroll_name.place(x=140, y=10, height=90)
         self.listbox_name.place(x=5, y=10)
         # タブ2
@@ -75,7 +90,10 @@ class App(tk.Frame):
         scroll_reaction = tk.Scrollbar(self.tab2)
         self.list_value_reaction = tk.StringVar()
         self.list_value_reaction.set(self.reaction_question_list)
-        self.listbox_reaction = tk.Listbox(self.tab2, height=6, width=22, listvariable=self.list_value_reaction, selectmode="single", yscrollcommand=scroll_reaction.set)
+        self.listbox_reaction = tk.Listbox(self.tab2, height=6, width=22,
+                                           listvariable=self.list_value_reaction,
+                                           selectmode="single",
+                                           yscrollcommand=scroll_reaction.set)
         scroll_reaction.place(x=140, y=10, height=90)
         self.listbox_reaction.place(x=5, y=10)
         # タブ3
@@ -83,12 +101,22 @@ class App(tk.Frame):
         scroll_confidence = tk.Scrollbar(self.tab3)
         self.list_value_confidence = tk.StringVar()
         self.list_value_confidence.set(self.confidence_out_list)
-        self.listbox_confidence = tk.Listbox(self.tab3, height=6, width=22, listvariable=self.list_value_confidence, selectmode="single", yscrollcommand=scroll_confidence.set)
+        self.listbox_confidence = tk.Listbox(self.tab3, height=6, width=22,
+                                             listvariable=self.list_value_confidence,
+                                             selectmode="single",
+                                             yscrollcommand=scroll_confidence.set)
         scroll_confidence.place(x=140, y=10, height=90)
         self.listbox_confidence.place(x=5, y=10)
-        
         self.setting_bind()
+
+    def file_dialog(self):
+        iDir = os.path.abspath(os.path.dirname(__file__))
+        folder_name = filedialog.askdirectory(initialdir=iDir)
+        self.setting_export_path(path=folder_name)
     
+    def setting_export_path(self, path):
+        self.path_entrybox.insert(0, path)
+
     def press_write_mic_queue(self):
         ids = get_microphone_devices()
         with open('mics.txt', 'w') as f:
@@ -108,7 +136,6 @@ class App(tk.Frame):
                 messagebox.showwarning('メッセージ', 'システムの起動を中止しました')
         else:
             self.canvas.create_text(248, 24, text='マイクの書き出しが必要', fill='red', tag='error', font=('MS明朝', 10))
-
 
     def press_Deletekey(self):
         if self.now_tab_name == '名前':
@@ -176,7 +203,6 @@ class App(tk.Frame):
             self.mic_ids = list(map(int, mic_ids.split('\n')))
             print(self.mic_ids)
 
-
     # UIを閉じるイベントが発生したとき
     def destroy_window(self):
         ret = messagebox.askokcancel('最終確認', 'システムを終了しますか？')
@@ -190,12 +216,12 @@ class App(tk.Frame):
 
     # クラス内メイン
     def main(self):
+        export_path = self.path_entrybox.get()
         self.backprocess = BackProcess(mic_ids=self.mic_ids, user_names=self.user_names, reaction_question_list=self.reaction_question_list, confidence_out_list=self.confidence_out_list)
         voice_recognition_thread = threading.Thread(target=self.backprocess.start_voice_recognition)
         voice_recognition_thread.start()
         self.voice_update_check_process_thread = threading.Thread(target=self.backprocess.voice_update_check_process)
         self.voice_update_check_process_thread.start()
-
 
 # 根幹
 def UI_main():
