@@ -10,6 +10,8 @@ posture_score_list = []
 knee_score_list = []
 neck_score_list = []
 hand_score_list = []
+time_stump_list = []
+
 
 # 特定のランドマーク（肩、腰、膝、足首）を表示
 landmarks_to_display = [
@@ -156,8 +158,11 @@ def hand_scoring(landmarks, image_height, image_width):#z軸:膝=手首 y軸:膝
 #   return False
 
 # Webカメラ入力の場合：
-def taking():
-  cap = cv2.VideoCapture(1)
+def taking(user_names=['こうし']):
+
+  timemark = 0
+
+  cap = cv2.VideoCapture(0)
   with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence=0.5) as pose:
             last_time = time.time()  # 最後に座標を取得した時間を記録
             while cap.isOpened():
@@ -176,9 +181,9 @@ def taking():
                 image.flags.writeable = True
                 image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
 
-                # 5秒ごとに座標を取得する
+                # 1秒ごとに座標を取得する
                 current_time = time.time()
-                if current_time - last_time < 5:
+                if current_time - last_time > 1:
                     last_time = current_time  # 現在の時間を記録して次回の基準にする
 
                     # 特定のランドマークを個別に描画する
@@ -207,15 +212,46 @@ def taking():
                             # ランドマークに対応するラベルを表示
                             # cv2.putText(image, label, (cx + 10, cy + 10),
                             #             cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
-                        if bottom_is_good(results.pose_landmarks.landmark, image_width):
-                          cv2.putText(image, 'good', (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2, cv2.LINE_AA)
-                        else:
-                          cv2.putText(image, 'bad', (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2, cv2.LINE_AA)
 
-                        neck = neck_scoring(results.pose_landmarks.landmark, image_height, image_width)
-                        cv2.putText(image, f"neck:{neck}", (30, 100), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2, cv2.LINE_AA)
+                        #if bottom_is_good(results.pose_landmarks.landmark, image_width):
+                        #   cv2.putText(image, 'good', (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2, cv2.LINE_AA)
+                        #else:
+                        #    cv2.putText(image, 'bad', (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2, cv2.LINE_AA)
+
+                        # 座っているかを判定
+                        if is_sitting(results.pose_landmarks.landmark, image_height):
+                            cv2.putText(image, 'Sitting', (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2, cv2.LINE_AA)
+                            # 左膝と左足首のX座標を使って９０度になっているかを判定
+                            #knee = posture_scoring_knee_ankle(results.pose_landmarks.landmark, image_width)
+                            knee_score_list.append(posture_scoring_knee_ankle(results.pose_landmarks.landmark, image_width))
+                            #cv2.putText(image, f'Posture (Knee-Ankle): {knee}', (30, 100), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 0), 2, cv2.LINE_AA)
+
+                            # 姿勢が良いかを判定
+                            #posture = posture_scoring(results.pose_landmarks.landmark, image_height, image_width)
+                            posture_score_list.append(posture_scoring(results.pose_landmarks.landmark, image_width))
+                              #cv2.putText(image, f'Posture: {posture}', (30, 70), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 0), 2, cv2.LINE_AA)
+
+                            #首の判定
+                            #neck = neck_scoring(results.pose_landmarks.landmark, image_height, image_width)
+                            neck_score_list.append(neck_scoring(results.pose_landmarks.landmark, image_height, image_width))
+                            #cv2.putText(image, f"neck:{neck}", (30, 100), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2, cv2.LINE_AA)
+
+                            #手首の判定
+                            #hand = hand_scoring(results.pose_landmarks.landmark, image_height, image_width)
+                            hand_score_list.append(hand_scoring(results.pose_landmarks.landmark, image_height, image_width))
+                            #cv2.putText(image, f"hand:{hand}", (30, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 255), 2, cv2.LINE_AA)
+
+                        else:
+                            cv2.putText(image, 'Standing', (30, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2, cv2.LINE_AA)
+                        
+                        timemark = timemark + 1
+                        time_stump_list.append(timemark)
+                        print(time_stump_list)
+
+
+
                 # 画像を表示
-                cv2.imshow('Selected Landmarks', image)
+                cv2.imshow('test', image)
 
                 if cv2.waitKey(5) & 0xFF == 27:
                     break
