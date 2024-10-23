@@ -6,6 +6,71 @@ import numpy as np
 mp_drawing = mp.solutions.drawing_utils
 mp_pose = mp.solutions.pose
 
+posture_score_list = []
+knee_score_list = []
+neck_score_list = []
+hand_score_list = []
+
+# 特定のランドマーク（肩、腰、膝、足首）を表示
+landmarks_to_display = [
+    mp_pose.PoseLandmark.LEFT_SHOULDER,   # 左肩
+    mp_pose.PoseLandmark.RIGHT_SHOULDER,  # 右肩
+    mp_pose.PoseLandmark.LEFT_HIP,        # 左腰
+    mp_pose.PoseLandmark.RIGHT_HIP,       # 右腰
+    mp_pose.PoseLandmark.LEFT_KNEE,       # 左膝
+    mp_pose.PoseLandmark.RIGHT_KNEE,      # 右膝
+    mp_pose.PoseLandmark.LEFT_ANKLE,      # 左足首
+    mp_pose.PoseLandmark.RIGHT_ANKLE      # 右足首
+]
+
+def is_sitting(landmarks, image_height, threshold=80):
+    # 必要なランドマークを取得
+    left_hip_y = landmarks[mp_pose.PoseLandmark.LEFT_HIP.value].y * image_height
+    right_hip_y = landmarks[mp_pose.PoseLandmark.RIGHT_HIP.value].y * image_height
+    left_knee_y = landmarks[mp_pose.PoseLandmark.LEFT_KNEE.value].y * image_height
+    right_knee_y = landmarks[mp_pose.PoseLandmark.RIGHT_KNEE.value].y * image_height
+
+    # 腰と膝のY座標の差を計算
+    left_diff = abs(left_hip_y - left_knee_y)
+    right_diff = abs(right_hip_y - right_knee_y)
+
+    # 差が閾値以下の場合は「座っている」と判定
+    if left_diff < threshold and right_diff < threshold:
+        return True
+    return False
+
+# 姿勢がよいかを判定する関数（肩と腰のX座標の差を使用）
+def posture_scoring(landmarks, image_width):
+    left_shoulder_x = landmarks[mp_pose.PoseLandmark.LEFT_SHOULDER.value].x * image_width
+    right_shoulder_x = landmarks[mp_pose.PoseLandmark.RIGHT_SHOULDER.value].x * image_width
+    left_hip_x = landmarks[mp_pose.PoseLandmark.LEFT_HIP.value].x * image_width
+    right_hip_x = landmarks[mp_pose.PoseLandmark.RIGHT_HIP.value].x * image_width
+
+    # 肩と腰のX座標の差を計算
+    diff = abs(left_shoulder_x - left_hip_x)
+
+    if diff < 30:
+        return 100
+    elif diff < 50:
+        return 50
+    else:
+        return 0
+
+# ９０度になっているかを判定する関数（左膝と左足首のX座標の差を使用）
+def posture_scoring_knee_ankle(landmarks, image_width):
+    left_knee_x = landmarks[mp_pose.PoseLandmark.LEFT_KNEE.value].x * image_width
+    left_ankle_x = landmarks[mp_pose.PoseLandmark.LEFT_ANKLE.value].x * image_width
+
+    # 膝と足首のX座標の差を計算
+    diff = abs(left_knee_x - left_ankle_x)
+
+    if diff < 30:
+        return 100
+    elif diff < 50:
+        return 50
+    else:
+        return 0
+
 #膝と足首の位置
 def bottom_is_good(landmarks, image_width, threshold=80):
   #座標取得
@@ -142,18 +207,37 @@ def taking():
                             # ランドマークに対応するラベルを表示
                             # cv2.putText(image, label, (cx + 10, cy + 10),
                             #             cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
-                        if bottom_is_good(results.pose_landmarks.landmark, image_width):
-                          cv2.putText(image, 'good', (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2, cv2.LINE_AA)
-                        else:
-                          cv2.putText(image, 'bad', (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2, cv2.LINE_AA)
 
+                    # 座っているかを判定
+                    if is_sitting(results.pose_landmarks.landmark, image_height):
+                        cv2.putText(image, 'Sitting', (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2, cv2.LINE_AA)
+                        # 左膝と左足首のX座標を使って９０度になっているかを判定
+                        knee = posture_scoring_knee_ankle(results.pose_landmarks.landmark, image_height, image_width)
+                        knee_score_list.append(posture_scoring_knee_ankle(results.pose_landmarks.landmark, image_width))
+                        cv2.putText(image, f'Posture (Knee-Ankle): {knee}', (30, 100), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 0), 2, cv2.LINE_AA)
+
+                        # 姿勢が良いかを判定
+                        posture = posture_scoring(results.pose_landmarks.landmark, image_height, image_width)
+                        posture_score_list.append(posture_scoring(results.pose_landmarks.landmark, image_width))
+                        cv2.putText(image, f'Posture: {posture}', (30, 70), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 0), 2, cv2.LINE_AA)
+
+                        #首の判定
                         neck = neck_scoring(results.pose_landmarks.landmark, image_height, image_width)
+                        neck_score_list.append(neck_scoring(results.pose_landmarks.landmark, image_height, image_width))
                         cv2.putText(image, f"neck:{neck}", (30, 100), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2, cv2.LINE_AA)
+
+                        #手首の判定
+                        hand = hand_scoring(results.pose_landmarks.landmark, image_height, image_width)
+                        hand_score_list.append(hand_scoring(results.pose_landmarks.landmark, image_height, image_width))
+                        cv2.putText(image, f"hand:{hand}", (30, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 255), 2, cv2.LINE_AA)
+                    else:
+                        cv2.putText(image, 'Standing', (30, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2, cv2.LINE_AA)
+
                 # 画像を表示
                 cv2.imshow('Selected Landmarks', image)
 
                 if cv2.waitKey(5) & 0xFF == 27:
                     break
 
+  cap.release()
 taking()
-cap.release()
