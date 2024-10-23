@@ -4,13 +4,14 @@ import mediapipe as mp
 mp_drawing = mp.solutions.drawing_utils
 mp_pose = mp.solutions.pose
 
-# 特定のランドマークのみ（鼻、肩、腰）を表示
+# 特定のランドマークのみ（肩、腰、膝）を表示
 landmarks_to_display = [
-    mp_pose.PoseLandmark.NOSE,            # 鼻
     mp_pose.PoseLandmark.LEFT_SHOULDER,   # 左肩
     mp_pose.PoseLandmark.RIGHT_SHOULDER,  # 右肩
     mp_pose.PoseLandmark.LEFT_HIP,        # 左腰
-    mp_pose.PoseLandmark.RIGHT_HIP        # 右腰
+    mp_pose.PoseLandmark.RIGHT_HIP,       # 右腰
+    mp_pose.PoseLandmark.LEFT_KNEE,       # 左膝
+    mp_pose.PoseLandmark.RIGHT_KNEE       # 右膝
 ]
 
 # 座っているかどうかを判定する関数（腰と膝のY座標の差を使用）
@@ -41,11 +42,11 @@ def posture_quality(landmarks, image_width):
     diff = abs(left_shoulder_x - left_hip_x)
 
     if diff < 30:
-        return 'Perfect'
+        return '100Point'
     elif diff < 50:
-        return 'Good'
+        return '50Point'
     else:
-        return 'Bad'
+        return '0Point'
 
 # Webカメラ入力の場合：
 cap = cv2.VideoCapture(0)
@@ -71,7 +72,7 @@ with mp_pose.Pose(
             mp_drawing.draw_landmarks(image, results.pose_landmarks, mp_pose.POSE_CONNECTIONS)
             image_height, image_width, _ = image.shape
 
-            # 鼻、肩、腰のX座標を描画
+            # 肩、腰、膝のX座標を描画
             for landmark in landmarks_to_display:
                 idx = landmark.value
                 landmark_x = results.pose_landmarks.landmark[idx].x * image_width  # X座標を画面上の幅にスケーリング
