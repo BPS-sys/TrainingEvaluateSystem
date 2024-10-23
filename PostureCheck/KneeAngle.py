@@ -4,6 +4,11 @@ import mediapipe as mp
 mp_drawing = mp.solutions.drawing_utils
 mp_pose = mp.solutions.pose
 
+posture_score_list = []
+knee_score_list = []
+neck_score_list = []
+hand_score_list = []
+
 # 特定のランドマーク（肩、腰、膝、足首）を表示
 landmarks_to_display = [
     mp_pose.PoseLandmark.LEFT_SHOULDER,   # 左肩
@@ -34,7 +39,7 @@ def is_sitting(landmarks, image_height, threshold=80):
     return False
 
 # 姿勢がよいかを判定する関数（肩と腰のX座標の差を使用）
-def posture_quality(landmarks, image_width):
+def posture_scoring(landmarks, image_width):
     left_shoulder_x = landmarks[mp_pose.PoseLandmark.LEFT_SHOULDER.value].x * image_width
     right_shoulder_x = landmarks[mp_pose.PoseLandmark.RIGHT_SHOULDER.value].x * image_width
     left_hip_x = landmarks[mp_pose.PoseLandmark.LEFT_HIP.value].x * image_width
@@ -44,14 +49,14 @@ def posture_quality(landmarks, image_width):
     diff = abs(left_shoulder_x - left_hip_x)
 
     if diff < 30:
-        return '100Point'
+        return 100
     elif diff < 50:
-        return '50Point'
+        return 50
     else:
-        return '0Point'
+        return 0
 
-# ９０度人なっているかを判定する関数（左膝と左足首のX座標の差を使用）
-def posture_quality_knee_ankle(landmarks, image_width):
+# ９０度になっているかを判定する関数（左膝と左足首のX座標の差を使用）
+def posture_scoring_knee_ankle(landmarks, image_width):
     left_knee_x = landmarks[mp_pose.PoseLandmark.LEFT_KNEE.value].x * image_width
     left_ankle_x = landmarks[mp_pose.PoseLandmark.LEFT_ANKLE.value].x * image_width
 
@@ -59,11 +64,55 @@ def posture_quality_knee_ankle(landmarks, image_width):
     diff = abs(left_knee_x - left_ankle_x)
 
     if diff < 30:
-        return '100Point'
+        return 100
     elif diff < 50:
-        return '50Point'
+        return 50
     else:
-        return '0Point'
+        return 0
+#首と肩の位置
+def neck_scoring(landmarks, image_height, image_width):
+
+  #座標取得
+  right_ear_x = landmarks[mp_pose.PoseLandmark.RIGHT_EAR.value].x * image_width
+  right_shoulder_x = landmarks[mp_pose.PoseLandmark.RIGHT_SHOULDER.value].x * image_width
+  left_ear_x = landmarks[mp_pose.PoseLandmark.LEFT_EAR.value].x * image_height
+  left_shoulder_x = landmarks[mp_pose.PoseLandmark.LEFT_SHOULDER.value].x * image_height
+
+  #y軸の誤差
+  left_diff = abs(left_ear_x - left_shoulder_x)
+  right_diff = abs(right_ear_x - right_shoulder_x)
+
+  if left_diff < 40 and right_diff <40:
+    return 100
+  elif 40 <= left_diff <= 55 or 40 <= right_diff <= 55:
+    return 50
+  else:
+    return 0
+
+#手首と膝のy軸とz軸を検証する
+def hand_scoring(landmarks, image_height, image_width):#z軸:膝=手首 y軸:膝-手首<限界値　x軸:閾値<膝-手首<限界値
+
+  #正規化
+  right_knee_x = landmarks[mp_pose.PoseLandmark.RIGHT_KNEE.value].x * image_width
+  right_knee_y = landmarks[mp_pose.PoseLandmark.RIGHT_KNEE.value].y * image_height
+  right_knee_z = landmarks[mp_pose.PoseLandmark.RIGHT_KNEE.value].z * image_height
+  right_wrist_x = landmarks[mp_pose.PoseLandmark.RIGHT_WRIST.value].x * image_width
+  right_wrist_y = landmarks[mp_pose.PoseLandmark.RIGHT_WRIST.value].y * image_height
+  right_wrist_z = landmarks[mp_pose.PoseLandmark.RIGHT_WRIST.value].z * image_height
+
+#x軸とy軸の差
+  right_x_diff = abs(right_knee_x - right_wrist_x)
+  right_y_diff = abs(right_knee_y - right_wrist_y)
+  right_z_diff = abs(right_knee_z - right_wrist_z)
+
+  if 30 <= right_x_diff <= 60 and 40 <= right_y_diff <= 80 and 0 <= right_z_diff <= 50:#x30~50, y40~50, z0~10
+    return 100
+  elif ((20 <= right_x_diff <= 29 or 51 <= right_x_diff <= 60) and
+        (30 <= right_y_diff <= 39 or 51 <= right_y_diff <= 60) and
+        11 <= right_z_diff <= 20):#x20~29・51~60, y30~39,51~60, z11~20 
+    return 50
+  else:
+    return 0
 
 # Webカメラ入力の場合：
 cap = cv2.VideoCapture(0)
@@ -101,12 +150,24 @@ with mp_pose.Pose(
                 cv2.putText(image, 'Standing', (30, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2, cv2.LINE_AA)
 
             # 左膝と左足首のX座標を使って９０度になっているかを判定
-            posture = posture_quality_knee_ankle(results.pose_landmarks.landmark, image_width)
-            cv2.putText(image, f'Posture (Knee-Ankle): {posture}', (30, 100), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 0), 2, cv2.LINE_AA)
+            #knee = posture_quality_scoring_ankle(results.pose_landmarks.landmark, image_height, image_width)
+            knee_score_list.append(posture_scoring_knee_ankle(results.pose_landmarks.landmark, image_width))
+            #cv2.putText(image, f'Posture (Knee-Ankle): {knee}', (30, 100), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 0), 2, cv2.LINE_AA)
 
-        # 姿勢が良いかを判定
-            posture = posture_quality(results.pose_landmarks.landmark, image_width)
-            cv2.putText(image, f'Posture: {posture}', (30, 80), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 0), 2, cv2.LINE_AA)
+            # 姿勢が良いかを判定
+            #posture = posture_scoring(results.pose_landmarks.landmark, image_height, image_width)
+            posture_score_list.append(posture_scoring(results.pose_landmarks.landmark, image_width))
+            #cv2.putText(image, f'Posture: {posture}', (30, 70), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 0), 2, cv2.LINE_AA)
+
+            #首の判定
+            #neck = neck_scoring(results.pose_landmarks.landmark, image_height, image_width)
+            neck_score_list.append(neck_scoring(results.pose_landmarks.landmark, image_height, image_width))
+            #cv2.putText(image, f"neck:{neck}", (30, 100), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2, cv2.LINE_AA)
+
+            #手首の判定
+            #hand = hand_scoring(results.pose_landmarks.landmark, image_height, image_width)
+            hand_score_list.append(hand_scoring(results.pose_landmarks.landmark, image_height, image_width))
+            #cv2.putText(image, f"hand:{hand}", (30, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 255), 2, cv2.LINE_AA)
 
         # ウィンドウに画像を表示
         cv2.imshow('MediaPipe Pose', image)
