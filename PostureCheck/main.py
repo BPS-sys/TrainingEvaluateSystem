@@ -8,7 +8,6 @@ mp_pose = mp.solutions.pose
 
 #膝と足首の位置
 def bottom_is_good(landmarks, image_width, threshold=80):
-  
   #座標取得
   right_knee_x = landmarks[mp_pose.PoseLandmark.RIGHT_KNEE.value].x * image_width
   left_knee_x = landmarks[mp_pose.PoseLandmark.LEFT_KNEE.value].x * image_width
