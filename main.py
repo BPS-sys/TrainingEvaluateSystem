@@ -220,6 +220,8 @@ class App(tk.Frame):
         self.backprocess = BackProcess(mic_ids=self.mic_ids, user_names=self.user_names, reaction_question_list=self.reaction_question_list, confidence_out_list=self.confidence_out_list)
         voice_recognition_thread = threading.Thread(target=self.backprocess.start_voice_recognition)
         voice_recognition_thread.start()
+        posture_check_thread = threading.Thread(target=self.backprocess.start_posture_check)
+        posture_check_thread.start()
         self.voice_update_check_process_thread = threading.Thread(target=self.backprocess.voice_update_check_process)
         self.voice_update_check_process_thread.start()
 

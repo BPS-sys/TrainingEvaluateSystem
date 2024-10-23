@@ -54,9 +54,10 @@ class BackProcess:
 
     def start_posture_check(self):
         for id, user_name in enumerate(self.user_names):
+            JudgePosture()
+        for id, user_name in enumerate(self.user_names):
             thread = threading.Thread(target=JudgePosture.taking, args=[user_name, id])
             thread.start()
-
 
     # リアクションチェック
     def reaction_check(self):
@@ -102,3 +103,6 @@ class BackProcess:
         for i, vtt in enumerate(self.vtts): 
             vtt.stop()
             self.voice_threads[i].join()
+
+    def stop_posture(self):
+
