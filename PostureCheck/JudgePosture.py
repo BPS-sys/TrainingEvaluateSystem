@@ -151,11 +151,11 @@ def hand_scoring(landmarks, image_height, image_width):#z軸:膝=手首 y軸:膝
 #   return False
 
 # Webカメラ入力の場合：
-def taking(user_names=['こうし']):
+def taking(user_name, id):
 
   timemark = 0
 
-  cap = cv2.VideoCapture(0)
+  cap = cv2.VideoCapture(id)
   with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence=0.5) as pose:
             last_time = time.time()  # 最後に座標を取得した時間を記録
             while cap.isOpened():
@@ -244,7 +244,7 @@ def taking(user_names=['こうし']):
 
 
                 # 画像を表示
-                cv2.imshow('test', image)
+                cv2.imshow(f'{user_name}', image)
 
                 if cv2.waitKey(5) & 0xFF == 27:
                     break

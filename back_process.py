@@ -7,6 +7,7 @@ from ReactionCheck import Reaction
 from ConfidenceCheck import Confidence
 from time import sleep
 import numpy as np
+from PostureCheck import JudgePosture
 
 
 class BackProcess:
@@ -50,6 +51,12 @@ class BackProcess:
                 self.confidence_check()
                 self.before_update = copy.deepcopy(last_update)
             sleep(0.5)
+
+    def start_posture_check(self):
+        for id, user_name in enumerate(self.user_names):
+            thread = threading.Thread(target=JudgePosture.taking, args=[user_name, id])
+            thread.start()
+
 
     # リアクションチェック
     def reaction_check(self):
